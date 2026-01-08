@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>GET SHIT DONE</title>
+    <link rel="manifest" href="./manifest.json" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['-apple-system', 'BlinkMacSystemFont', 'San Francisco', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
+              mono: ['SF Mono', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            },
+            colors: {
+              lime: {
+                300: '#bef264',
+                400: '#a3e635',
+                500: '#84cc16',
+                glow: '#ccff00',
+              },
+              sage: {
+                50: '#f7f9f7',
+                100: '#ecf2ec',
+                200: '#dce8dc',
+                300: '#c2d5c2',
+                500: '#84a984',
+                800: '#3f523f',
+                900: '#1a2e1a', // Dark Moss
+              },
+              cream: '#F5F5F0',
+            },
+            animation: {
+              'enter': 'fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              'blob': 'blob 15s infinite alternate',
+              'gradient-x': 'gradient-x 15s ease infinite',
+              'shimmer': 'shimmer 2.5s linear infinite',
+              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            },
+            keyframes: {
+              fadeInUp: {
+                '0%': { opacity: '0', transform: 'translateY(20px) scale(0.98)' },
+                '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+              },
+              blob: {
+                '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                '33%': { transform: 'translate(30px, -50px) scale(1.2)' },
+                '66%': { transform: 'translate(-20px, 20px) scale(0.8)' },
+                '100%': { transform: 'translate(0px, 0px) scale(1)' },
+              },
+              'gradient-x': {
+                '0%, 100%': {
+                    'background-size': '200% 200%',
+                    'background-position': 'left center'
+                },
+                '50%': {
+                    'background-size': '200% 200%',
+                    'background-position': 'right center'
+                },
+              },
+              shimmer: {
+                '0%': { backgroundPosition: '-1000px 0' },
+                '100%': { backgroundPosition: '1000px 0' }
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #000000;
+        color: #F2F2F7;
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        transition: background-color 0.5s ease, color 0.5s ease;
+      }
+
+      /* Light Mode Overrides */
+      html:not(.dark) body {
+        background-color: #F5F5F0;
+        color: #1a2e1a;
+      }
+
+      /* iOS-like Scrollbar */
+      ::-webkit-scrollbar {
+        width: 0px;
+        background: transparent;
+      }
+      
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(190, 242, 100, 0.1);
+        border-radius: 10px;
+      }
+      
+      .dark .spatial-glass {
+        background: rgba(20, 20, 20, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+      }
+
+      /* Light Mode Glass */
+      html:not(.dark) .spatial-glass {
+        background: rgba(255, 255, 255, 0.65);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        box-shadow: 0 20px 40px -12px rgba(132, 169, 132, 0.15);
+      }
+      
+      .spatial-glass {
+        backdrop-filter: blur(40px) saturate(120%);
+        -webkit-backdrop-filter: blur(40px) saturate(120%);
+      }
+      
+      .animate-delay-100 { animation-delay: 100ms; }
+      .animate-delay-200 { animation-delay: 200ms; }
+      .animate-delay-300 { animation-delay: 300ms; }
+      
+      input, select, textarea {
+        font-size: 16px; /* Prevents iOS zoom */
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
