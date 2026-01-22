@@ -133,22 +133,45 @@ const GoalList: React.FC<GoalListProps> = ({ goals, tasks, onRemoveGoal, onUpdat
                 </button>
               </div>
 
-              {/* Liquid Progress Bar */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-[11px] font-medium text-sage-500 dark:text-white/40">
-                  <span>Daily Progress</span>
-                  <span className="text-lime-700 dark:text-lime-200">{dailyProgress}%</span>
-                </div>
-                <div className="relative h-2 w-full overflow-hidden rounded-full bg-sage-200 dark:bg-black/40 shadow-inner">
-                  <div
-                    className="absolute inset-0 bg-gradient-to-r from-lime-400 via-emerald-500 to-lime-600 animate-gradient-x"
-                    style={{ width: `${dailyProgress}%`, transition: 'width 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
-                  >
-                    {/* Shine line */}
-                    <div className="absolute top-0 bottom-0 right-0 w-[1px] bg-white/50 shadow-[0_0_10px_white]"></div>
+              {/* Goal Progress Bar - based on subtasks */}
+              {goal.subtasks && goal.subtasks.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-[11px] font-medium text-sage-500 dark:text-white/40">
+                    <span>Goal Progress</span>
+                    <span className={goal.isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-lime-700 dark:text-lime-200'}>
+                      {goal.isCompleted ? '✓ Completed' : `${goal.subtasks.filter(st => st.isCompleted).length} / ${goal.subtasks.length} steps`}
+                    </span>
+                  </div>
+                  <div className="relative h-2 w-full overflow-hidden rounded-full bg-sage-200 dark:bg-black/40 shadow-inner">
+                    <div
+                      className={`absolute inset-0 ${goal.isCompleted
+                        ? 'bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600'
+                        : 'bg-gradient-to-r from-lime-400 via-emerald-500 to-lime-600'} animate-gradient-x`}
+                      style={{
+                        width: `${goal.subtasks.length > 0
+                          ? Math.round((goal.subtasks.filter(st => st.isCompleted).length / goal.subtasks.length) * 100)
+                          : 0}%`,
+                        transition: 'width 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                      }}
+                    >
+                      {/* Shine line */}
+                      <div className="absolute top-0 bottom-0 right-0 w-[1px] bg-white/50 shadow-[0_0_10px_white]"></div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
+              {/* Loading state when subtasks are being generated */}
+              {(!goal.subtasks || goal.subtasks.length === 0) && (
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-[11px] font-medium text-sage-500 dark:text-white/40">
+                    <span>Generating plan...</span>
+                    <span className="animate-pulse">⏳</span>
+                  </div>
+                  <div className="relative h-2 w-full overflow-hidden rounded-full bg-sage-200 dark:bg-black/40 shadow-inner">
+                    <div className="absolute inset-0 w-1/3 bg-gradient-to-r from-lime-400 via-emerald-500 to-lime-600 animate-pulse"></div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

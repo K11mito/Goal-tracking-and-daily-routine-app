@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Goal, GoalCategory, DailyTask } from './types';
+import { Goal, GoalCategory, DailyTask, SubTask } from './types';
 import GoalInput from './components/GoalInput';
 import GoalList from './components/GoalList';
 import DailyPlan from './components/DailyPlan';
@@ -8,6 +8,7 @@ import Background from './components/Background';
 import FocusOverlay from './components/FocusOverlay';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { Terminal, Download, Trash, Bell, BellOff, Activity, Hexagon, Moon, Sun } from 'lucide-react';
+import { generateGoalPlan } from './services/geminiService';
 
 const AppContent: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -69,16 +70,32 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const addGoal = (text: string, category: GoalCategory, importance: number, dueDate: number) => {
-    setGoals(prev => [...prev, {
-      id: crypto.randomUUID(),
+  const addGoal = async (text: string, category: GoalCategory, importance: number, dueDate: number) => {
+    const goalId = crypto.randomUUID();
+
+    // Create goal immediately with empty subtasks (will populate after AI returns)
+    const newGoal: Goal = {
+      id: goalId,
       text,
       category,
       importance,
       dueDate,
       createdAt: Date.now(),
-      totalCompletedTasks: 0
-    }]);
+      totalCompletedTasks: 0,
+      subtasks: [],
+      isCompleted: false,
+      currentSubtaskIndex: 0
+    };
+
+    setGoals(prev => [...prev, newGoal]);
+
+    // Generate the subtask plan asynchronously
+    const subtasks = await generateGoalPlan(text, category);
+
+    // Update the goal with the generated subtasks
+    setGoals(prev => prev.map(g =>
+      g.id === goalId ? { ...g, subtasks } : g
+    ));
   };
 
   const removeGoal = (id: string) => {
@@ -121,11 +138,43 @@ const AppContent: React.FC = () => {
       setGoals(prevGoals => prevGoals.map(g => {
         if (g.id === currentTask.associatedGoalId) {
           const currentXP = g.totalCompletedTasks || 0;
-          return { ...g, totalCompletedTasks: isNowComplete ? currentXP + 1 : Math.max(0, currentXP - 1) };
+
+          // Mark the subtask as complete/incomplete
+          let updatedSubtasks = g.subtasks;
+          if (currentTask.subtaskId) {
+            updatedSubtasks = g.subtasks.map(st =>
+              st.id === currentTask.subtaskId
+                ? { ...st, isCompleted: isNowComplete }
+                : st
+            );
+          }
+
+          // Check if all subtasks are now complete
+          const allSubtasksComplete = updatedSubtasks.length > 0 &&
+            updatedSubtasks.every(st => st.isCompleted);
+
+          return {
+            ...g,
+            totalCompletedTasks: isNowComplete ? currentXP + 1 : Math.max(0, currentXP - 1),
+            subtasks: updatedSubtasks,
+            isCompleted: allSubtasksComplete
+          };
         }
         return g;
       }));
-      if (isNowComplete) sendNotification("Objective Complete", "+1 XP");
+
+      // Check if goal was just completed
+      const goal = goals.find(g => g.id === currentTask.associatedGoalId);
+      if (goal && isNowComplete) {
+        const allDone = goal.subtasks.every(st =>
+          st.id === currentTask.subtaskId ? true : st.isCompleted
+        );
+        if (allDone) {
+          sendNotification("🎯 Goal Achieved!", `"${goal.text}" is complete!`);
+        } else {
+          sendNotification("Objective Complete", "+1 XP");
+        }
+      }
     }
   };
 

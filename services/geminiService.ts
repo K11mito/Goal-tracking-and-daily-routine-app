@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, FunctionDeclaration, GenerateContentResponse } from "@google/genai";
-import { Goal, ChatMessage, DailyTask } from '../types';
+import { Goal, ChatMessage, DailyTask, SubTask } from '../types';
 
 const getClient = () => {
   const apiKey = process.env.API_KEY;
@@ -8,6 +8,65 @@ const getClient = () => {
     return null;
   }
   return new GoogleGenAI({ apiKey: apiKey });
+};
+
+// Generate a progressive plan of subtasks for a goal
+export const generateGoalPlan = async (goalText: string, category: string): Promise<SubTask[]> => {
+  const ai = getClient();
+
+  if (!ai) {
+    return [
+      { id: crypto.randomUUID(), text: "Break down goal into smaller steps", order: 0, isCompleted: false }
+    ];
+  }
+
+  const prompt = `
+    You are an expert productivity coach. Break down this goal into a progressive, sequential plan of 5-8 actionable subtasks.
+    
+    Goal: ${goalText}
+    Category: ${category}
+    
+    RULES:
+    - Each subtask should logically follow from the previous one
+    - Start with foundational/preparatory tasks and progress toward completion
+    - Make tasks specific and actionable (avoid vague tasks like "work on it")
+    - Tasks should be completable in 1-2 hours each
+    - The final task should represent goal completion
+    
+    Return ONLY a valid JSON array of subtask strings in order.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING }
+        }
+      }
+    });
+
+    const jsonText = response.text;
+    if (!jsonText) return [];
+
+    const parsed: string[] = JSON.parse(jsonText);
+
+    return parsed.map((text, index) => ({
+      id: crypto.randomUUID(),
+      text,
+      order: index,
+      isCompleted: false
+    }));
+
+  } catch (error) {
+    console.error("Error generating goal plan:", error);
+    return [
+      { id: crypto.randomUUID(), text: "Start working on your goal", order: 0, isCompleted: false }
+    ];
+  }
 };
 
 // Define the tool for the chatbot
@@ -36,65 +95,34 @@ const managePlanTool: FunctionDeclaration = {
 };
 
 export const generateDailyTasks = async (goals: Goal[]): Promise<DailyTask[]> => {
-  const ai = getClient();
-  
-  if (!ai) {
-    return [
-      { id: 'error-1', text: "API Key Missing", isCompleted: false }
-    ];
+  // Filter to only incomplete goals that have subtasks
+  const incompleteGoals = goals.filter(g => !g.isCompleted && g.subtasks && g.subtasks.length > 0);
+
+  if (incompleteGoals.length === 0) return [];
+
+  // For each goal, get the next incomplete subtask
+  const dailyTasks: DailyTask[] = [];
+
+  for (const goal of incompleteGoals) {
+    // Find the first incomplete subtask
+    const nextSubtask = goal.subtasks.find(st => !st.isCompleted);
+
+    if (nextSubtask) {
+      // Calculate progress for display
+      const completedCount = goal.subtasks.filter(st => st.isCompleted).length;
+      const totalCount = goal.subtasks.length;
+
+      dailyTasks.push({
+        id: crypto.randomUUID(),
+        text: `${nextSubtask.text}`,
+        isCompleted: false,
+        associatedGoalId: goal.id,
+        subtaskId: nextSubtask.id
+      });
+    }
   }
-  
-  if (goals.length === 0) return [];
 
-  const goalsDescription = goals
-    .map(g => `ID: "${g.id}" | Goal: [${g.category}] ${g.text} (Importance: ${g.importance}/10)`)
-    .join('\n');
-
-  const prompt = `
-    You are an expert productivity coach. Here are my current goals:
-    ${goalsDescription}
-
-    Generate a list of 3 to 6 concrete, actionable daily tasks I can do TODAY.
-    CRITICAL: You MUST associate each task with the specific "ID" of the goal it helps achieve.
-    Return ONLY a valid JSON array.
-  `;
-
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              text: { type: Type.STRING },
-              associatedGoalId: { type: Type.STRING }
-            },
-            required: ["text", "associatedGoalId"]
-          }
-        }
-      }
-    });
-
-    const jsonText = response.text;
-    if (!jsonText) return [];
-    
-    const parsed = JSON.parse(jsonText);
-    
-    return parsed.map((item: any) => ({
-      id: crypto.randomUUID(),
-      text: item.text,
-      isCompleted: false,
-      associatedGoalId: item.associatedGoalId
-    }));
-
-  } catch (error) {
-    console.error("Error generating tasks:", error);
-    return [];
-  }
+  return dailyTasks;
 };
 
 export const chatWithGoals = async (
@@ -104,13 +132,13 @@ export const chatWithGoals = async (
   currentTasks: DailyTask[]
 ): Promise<GenerateContentResponse | null> => {
   const ai = getClient();
-  
+
   if (!ai) return null;
-  
-  const goalsContext = goals.length > 0 
+
+  const goalsContext = goals.length > 0
     ? `Goals:\n${goals.map(g => `- ${g.text} (${g.category})`).join('\n')}`
     : "No goals set.";
-    
+
   const tasksContext = currentTasks.length > 0
     ? `Current Daily Tasks:\n${currentTasks.map(t => `- [${t.isCompleted ? 'X' : ' '}] ${t.text} (ID: ${t.id})`).join('\n')}`
     : "No daily tasks yet.";

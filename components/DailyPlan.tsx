@@ -234,17 +234,23 @@ const DailyPlan: React.FC<DailyPlanProps> = ({
                         )}
                       </span>
                     )}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {category && (
                         <span className="text-[10px] font-bold uppercase tracking-widest text-sage-500 dark:text-white/40 group-hover:text-lime-700 dark:group-hover:text-lime-300/70 transition-colors">
                           {category}
                         </span>
                       )}
+                      {/* Step Progress */}
+                      {goal && goal.subtasks && goal.subtasks.length > 0 && !task.isCompleted && (
+                        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-lime-500/10 text-lime-700 dark:text-lime-300">
+                          Step {goal.subtasks.filter(st => st.isCompleted).length + 1} of {goal.subtasks.length}
+                        </span>
+                      )}
                       {!task.isCompleted && (
                         <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${eisenhower.priority === 'urgent-important' ? 'bg-red-500/20 text-red-600 dark:text-red-400' :
-                            eisenhower.priority === 'important' ? 'bg-purple-500/20 text-purple-600 dark:text-purple-400' :
-                              eisenhower.priority === 'urgent' ? 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400' :
-                                'bg-blue-400/20 text-blue-600 dark:text-blue-400'
+                          eisenhower.priority === 'important' ? 'bg-purple-500/20 text-purple-600 dark:text-purple-400' :
+                            eisenhower.priority === 'urgent' ? 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400' :
+                              'bg-blue-400/20 text-blue-600 dark:text-blue-400'
                           }`}>
                           {eisenhower.label}
                         </span>

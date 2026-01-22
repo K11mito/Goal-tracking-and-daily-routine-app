@@ -5,6 +5,14 @@ export enum GoalCategory {
   Health = 'Health',
 }
 
+// A single subtask in a goal's plan
+export interface SubTask {
+  id: string;
+  text: string;
+  order: number;
+  isCompleted: boolean;
+}
+
 export interface Goal {
   id: string;
   text: string;
@@ -13,6 +21,10 @@ export interface Goal {
   dueDate: number; // Timestamp for goal deadline
   createdAt: number;
   totalCompletedTasks: number; // XP System
+  // Progressive task system
+  subtasks: SubTask[];
+  isCompleted: boolean;
+  currentSubtaskIndex: number; // Index of current active subtask
 }
 
 export interface DailyTask {
@@ -20,6 +32,7 @@ export interface DailyTask {
   text: string;
   isCompleted: boolean;
   associatedGoalId?: string;
+  subtaskId?: string; // Link to the specific subtask
 }
 
 export interface ChatMessage {
