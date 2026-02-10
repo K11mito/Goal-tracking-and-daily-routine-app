@@ -44,25 +44,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ goals, tasks, onModifyTas
 
     try {
       const response = await chatWithGoals(userMsg.text, messages, goals, tasks);
-      
+
       let botText = "I encountered an error.";
-      
-      if (response && response.candidates && response.candidates[0]) {
-        const parts = response.candidates[0].content.parts;
-        
+
+      if (response) {
         // Handle Tool Calls (Function Calling)
-        const functionCall = parts.find(part => part.functionCall);
-        
-        if (functionCall) {
-           const call = functionCall.functionCall;
-           if (call.name === 'manage_daily_plan') {
-             const args = call.args as any;
-             onModifyTasks(args.action, 'task', args.taskText, args.taskId);
-             botText = `Executing protocol: ${args.action} task.`;
-           }
-        } else {
-           // Standard Text Response
-           botText = parts.map(p => p.text).join('');
+        if (response.functionCalls && response.functionCalls.length > 0) {
+          const call = response.functionCalls[0];
+          if (call.name === 'manage_daily_plan') {
+            const args = call.args as { action: 'add' | 'remove' | 'update'; taskText?: string; taskId?: string };
+            onModifyTasks(args.action, 'task', args.taskText, args.taskId);
+            botText = `Executing protocol: ${args.action} task.`;
+          }
+        } else if (response.text) {
+          // Standard Text Response
+          botText = response.text;
         }
       }
 
