@@ -7,8 +7,9 @@ import ChatInterface from './components/ChatInterface';
 import Background from './components/Background';
 import FocusOverlay from './components/FocusOverlay';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
-import { Terminal, Download, Trash, Bell, BellOff, Activity, Hexagon, Moon, Sun } from 'lucide-react';
+import { Terminal, Download, Trash, Bell, BellOff, Activity, Hexagon, Moon, Sun, Settings } from 'lucide-react';
 import { generateGoalPlan } from './services/geminiService';
+import SettingsPanel from './components/SettingsPanel';
 
 const AppContent: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -32,6 +33,7 @@ const AppContent: React.FC = () => {
   });
 
   const [focusedTask, setFocusedTask] = useState<DailyTask | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -232,6 +234,7 @@ const AppContent: React.FC = () => {
   return (
     <div className="min-h-screen text-sage-900 dark:text-slate-300 pb-20 selection:bg-lime-300/30 selection:text-black dark:selection:text-white transition-colors duration-500">
       <Background />
+      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       {focusedTask && (
         <FocusOverlay
@@ -256,6 +259,9 @@ const AppContent: React.FC = () => {
             </div>
 
             <div className="flex gap-3">
+              <button onClick={() => setSettingsOpen(true)} className="p-2.5 rounded-full bg-white/20 dark:bg-white/5 border border-white/10 text-sage-800 dark:text-white hover:bg-white/30 transition-colors" title="Settings">
+                <Settings size={20} />
+              </button>
               <button onClick={toggleTheme} className="p-2.5 rounded-full bg-white/20 dark:bg-white/5 border border-white/10 text-sage-800 dark:text-white hover:bg-white/30 transition-colors">
                 {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
               </button>

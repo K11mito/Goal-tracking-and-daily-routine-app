@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
+import { checkRateLimit, getClientIP } from './_rateLimit';
 
 interface ChatMessage {
   role: 'user' | 'model';
@@ -47,16 +48,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  // Check for user-provided API key (BYOK)
+  const userApiKey = req.headers['x-user-api-key'] as string | undefined;
+  const apiKey = userApiKey || process.env.GEMINI_API_KEY;
+
   if (!apiKey) {
     return res.status(500).json({ error: 'API key not configured' });
   }
 
-  const { message, history, goals, currentTasks } = req.body as {
+  // Only rate limit if using server key
+  if (!userApiKey) {
+    const ip = getClientIP(req);
+    const { allowed } = checkRateLimit(ip, '/api/chat');
+    if (!allowed) {
+      return res.status(429).json({ error: 'Rate limit exceeded. Add your own API key in settings for unlimited usage.' });
+    }
+  }
+
+  const { message, history, goals, currentTasks, memory } = req.body as {
     message: string;
     history: ChatMessage[];
     goals: Goal[];
     currentTasks: DailyTask[];
+    memory?: string;
   };
 
   if (!message) {
@@ -73,11 +87,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ? `Current Daily Tasks:\n${currentTasks.map(t => `- [${t.isCompleted ? 'X' : ' '}] ${t.text} (ID: ${t.id})`).join('\n')}`
     : "No daily tasks yet.";
 
+  const memoryContext = memory
+    ? `\n\nMemory from previous sessions (use this to personalize your responses):\n${memory}`
+    : '';
+
   const systemInstruction = `
     You are a goal-oriented assistant.
     Context:
     ${goalsContext}
-    ${tasksContext}
+    ${tasksContext}${memoryContext}
 
     If the user asks to add, change, or remove a task, CALL THE "manage_daily_plan" TOOL.
     When removing or updating, you MUST use the exact 'ID' listed in the context above.
@@ -99,7 +117,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const response = await chat.sendMessage({ message });
 
-    // Serialize the response for client consumption
     const serializedResponse = {
       text: response.text,
       functionCalls: response.functionCalls,

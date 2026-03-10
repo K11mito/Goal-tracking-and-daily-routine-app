@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from "@google/genai";
+import { checkRateLimit, getClientIP } from './_rateLimit';
 
 interface SubTask {
   id: string;
@@ -13,9 +14,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  // Check for user-provided API key (BYOK)
+  const userApiKey = req.headers['x-user-api-key'] as string | undefined;
+  const apiKey = userApiKey || process.env.GEMINI_API_KEY;
+
   if (!apiKey) {
     return res.status(500).json({ error: 'API key not configured' });
+  }
+
+  // Only rate limit if using server key
+  if (!userApiKey) {
+    const ip = getClientIP(req);
+    const { allowed } = checkRateLimit(ip, '/api/generate');
+    if (!allowed) {
+      return res.status(429).json({ error: 'Rate limit exceeded. Add your own API key in settings for unlimited usage.' });
+    }
   }
 
   const { goalText, category } = req.body;

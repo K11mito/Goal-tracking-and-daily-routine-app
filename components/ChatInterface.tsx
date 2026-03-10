@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ChatMessage, Goal, DailyTask } from '../types';
 import GlassCard from './GlassCard';
-import { MessageSquare, ArrowRight, Bot, Wrench } from 'lucide-react';
-import { chatWithGoals } from '../services/geminiService';
+import { MessageSquare, ArrowRight, Bot } from 'lucide-react';
+import { chatWithGoals, summarizeChat } from '../services/geminiService';
 
 interface ChatInterfaceProps {
   goals: Goal[];
@@ -22,10 +22,60 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ goals, tasks, onModifyTas
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<ChatMessage[]>(messages);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Summarize and save memory when component unmounts or page unloads
+  const saveMemory = useCallback(async () => {
+    const currentMessages = messagesRef.current;
+    // Only summarize if there were actual user messages (more than just the initial bot message)
+    if (currentMessages.length <= 2) return;
+
+    try {
+      const summary = await summarizeChat(currentMessages);
+      if (summary && summary !== 'No significant context.') {
+        localStorage.setItem('liquid-chat-memory', summary);
+      }
+    } catch (error) {
+      console.error('Failed to save chat memory:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Save memory on page unload
+    const handleBeforeUnload = () => {
+      const currentMessages = messagesRef.current;
+      if (currentMessages.length <= 2) return;
+
+      // Use sendBeacon for reliable delivery during page unload
+      // Note: sendBeacon can't set custom headers, so include userApiKey in body
+      const existingMemory = localStorage.getItem('liquid-chat-memory') || undefined;
+      const userKey = localStorage.getItem('liquid-user-api-key') || undefined;
+
+      const blob = new Blob([JSON.stringify({
+        messages: currentMessages.map(m => ({ role: m.role, text: m.text })),
+        existingMemory,
+        userApiKey: userKey,
+      })], { type: 'application/json' });
+
+      navigator.sendBeacon('/api/summarize', blob);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Also save on component unmount (e.g., navigating away within the SPA)
+      saveMemory();
+    };
+  }, [saveMemory]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +98,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ goals, tasks, onModifyTas
       let botText = "I encountered an error.";
 
       if (response) {
-        // Handle Tool Calls (Function Calling)
         if (response.functionCalls && response.functionCalls.length > 0) {
           const call = response.functionCalls[0];
           if (call.name === 'manage_daily_plan') {
@@ -57,7 +106,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ goals, tasks, onModifyTas
             botText = `Executing protocol: ${args.action} task.`;
           }
         } else if (response.text) {
-          // Standard Text Response
           botText = response.text;
         }
       }

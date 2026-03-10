@@ -258,7 +258,7 @@ const FocusOverlay: React.FC<FocusOverlayProps> = ({ task, onComplete, onCancel 
     const origin = currentRoute.origin as [number, number];
     const destination = currentRoute.destination as [number, number];
 
-    mapboxgl.accessToken = 'pk.eyJ1Ijoia2ltaXQwIiwiYSI6ImNtbGNwajhwejB5dDIzZXBrdWZ1MjY5NnIifQ.9TEMbjHwmtrgY-e3_gf6wg';
+    mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
     // Generate great circle path
     routePointsRef.current = getGreatCirclePoints(origin, destination, 200);
