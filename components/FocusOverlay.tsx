@@ -449,10 +449,6 @@ const FocusOverlay: React.FC<FocusOverlayProps> = ({ task, onComplete, onCancel 
     }
   }, [isMuted]);
 
-  useEffect(() => {
-    setIsActive(true);
-  }, []);
-
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;

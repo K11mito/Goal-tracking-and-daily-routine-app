@@ -8,7 +8,7 @@ import Background from './components/Background';
 import FocusOverlay from './components/FocusOverlay';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { Terminal, Download, Trash, Bell, BellOff, Activity, Hexagon, Moon, Sun, Settings } from 'lucide-react';
-import { generateGoalPlan } from './services/geminiService';
+import { generateGoalPlan } from './services/aiService';
 import SettingsPanel from './components/SettingsPanel';
 
 const AppContent: React.FC = () => {
@@ -67,7 +67,7 @@ const AppContent: React.FC = () => {
   };
 
   const sendNotification = (title: string, body: string) => {
-    if (notificationsEnabled && 'Notification' in window && document.visibilityState === 'hidden') {
+    if (notificationsEnabled && 'Notification' in window) {
       new Notification(title, { body, icon: "/icon.png" });
     }
   };
@@ -126,7 +126,7 @@ const AppContent: React.FC = () => {
   };
 
   const handleTaskToggle = (taskId: string) => {
-    let currentTask = tasks.find(t => t.id === taskId);
+    const currentTask = tasks.find(t => t.id === taskId);
     if (!currentTask) return;
 
     const isNowComplete = !currentTask.isCompleted;
@@ -137,24 +137,22 @@ const AppContent: React.FC = () => {
     }));
 
     if (currentTask.associatedGoalId) {
+      // Compute updated subtasks locally to avoid stale closure
+      const goal = goals.find(g => g.id === currentTask.associatedGoalId);
+      if (!goal) return;
+
+      const updatedSubtasks = currentTask.subtaskId
+        ? goal.subtasks.map(st =>
+            st.id === currentTask.subtaskId ? { ...st, isCompleted: isNowComplete } : st
+          )
+        : goal.subtasks;
+
+      const allSubtasksComplete = updatedSubtasks.length > 0 &&
+        updatedSubtasks.every(st => st.isCompleted);
+
       setGoals(prevGoals => prevGoals.map(g => {
         if (g.id === currentTask.associatedGoalId) {
           const currentXP = g.totalCompletedTasks || 0;
-
-          // Mark the subtask as complete/incomplete
-          let updatedSubtasks = g.subtasks;
-          if (currentTask.subtaskId) {
-            updatedSubtasks = g.subtasks.map(st =>
-              st.id === currentTask.subtaskId
-                ? { ...st, isCompleted: isNowComplete }
-                : st
-            );
-          }
-
-          // Check if all subtasks are now complete
-          const allSubtasksComplete = updatedSubtasks.length > 0 &&
-            updatedSubtasks.every(st => st.isCompleted);
-
           return {
             ...g,
             totalCompletedTasks: isNowComplete ? currentXP + 1 : Math.max(0, currentXP - 1),
@@ -165,14 +163,10 @@ const AppContent: React.FC = () => {
         return g;
       }));
 
-      // Check if goal was just completed
-      const goal = goals.find(g => g.id === currentTask.associatedGoalId);
-      if (goal && isNowComplete) {
-        const allDone = goal.subtasks.every(st =>
-          st.id === currentTask.subtaskId ? true : st.isCompleted
-        );
-        if (allDone) {
-          sendNotification("🎯 Goal Achieved!", `"${goal.text}" is complete!`);
+      // Notification uses locally-computed result — no stale closure
+      if (isNowComplete) {
+        if (allSubtasksComplete) {
+          sendNotification("Goal Achieved!", `"${goal.text}" is complete!`);
         } else {
           sendNotification("Objective Complete", "+1 XP");
         }

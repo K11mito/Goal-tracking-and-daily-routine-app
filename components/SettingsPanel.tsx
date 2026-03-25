@@ -67,11 +67,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }) => {
         {/* API Key Section */}
         <div className="mb-6">
           <label className="block text-xs font-bold uppercase tracking-wider text-sage-700 dark:text-slate-300 mb-2">
-            Gemini API Key
+            OpenAI API Key
           </label>
           <p className="text-[11px] text-sage-500 dark:text-slate-500 mb-3">
-            Add your own Gemini API key for unlimited usage. Get one free at{' '}
-            <span className="text-lime-600 dark:text-lime-400">aistudio.google.com</span>
+            Add your own OpenAI API key for unlimited usage. Get one at{' '}
+            <span className="text-lime-600 dark:text-lime-400">platform.openai.com/api-keys</span>
           </p>
 
           {hasKey ? (
@@ -94,7 +94,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }) => {
                 type="password"
                 value={apiKey}
                 onChange={e => setApiKey(e.target.value)}
-                placeholder="AIzaSy..."
+                placeholder="sk-..."
                 className="flex-1 rounded bg-white/50 dark:bg-black/30 px-3 py-2 font-mono text-xs text-sage-900 dark:text-white placeholder-sage-400 dark:placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-lime-500/50 border border-sage-200 dark:border-white/10"
                 onKeyDown={e => e.key === 'Enter' && saveKey()}
               />

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
+import OpenAI from 'openai';
 import { checkRateLimit, getClientIP } from './_rateLimit';
 
 interface ChatMessage {
@@ -19,27 +19,30 @@ interface DailyTask {
   isCompleted: boolean;
 }
 
-const managePlanTool: FunctionDeclaration = {
-  name: 'manage_daily_plan',
-  description: 'Add, remove, or update daily tasks in the user\'s plan. Use this when the user explicitly asks to modify their list.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      action: {
-        type: Type.STRING,
-        enum: ['add', 'remove', 'update'],
-        description: 'The action to perform on the task list.'
+const managePlanTool: OpenAI.ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'manage_daily_plan',
+    description: 'Add, remove, or update daily tasks in the user\'s plan. Use this when the user explicitly asks to modify their list.',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['add', 'remove', 'update'],
+          description: 'The action to perform on the task list.'
+        },
+        taskText: {
+          type: 'string',
+          description: 'The content of the task (required for add/update).'
+        },
+        taskId: {
+          type: 'string',
+          description: 'The ID of the task (required for remove/update). You MUST get this from the context provided.'
+        }
       },
-      taskText: {
-        type: Type.STRING,
-        description: 'The content of the task (required for add/update).'
-      },
-      taskId: {
-        type: Type.STRING,
-        description: 'The ID of the task (required for remove/update). You MUST get this from the context provided.'
-      }
-    },
-    required: ['action']
+      required: ['action']
+    }
   }
 };
 
@@ -50,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Check for user-provided API key (BYOK)
   const userApiKey = req.headers['x-user-api-key'] as string | undefined;
-  const apiKey = userApiKey || process.env.GEMINI_API_KEY;
+  const apiKey = userApiKey || process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
     return res.status(500).json({ error: 'API key not configured' });
@@ -77,7 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing message' });
   }
 
-  const ai = new GoogleGenAI({ apiKey });
+  const openai = new OpenAI({ apiKey });
 
   const goalsContext = goals && goals.length > 0
     ? `Goals:\n${goals.map(g => `- ${g.text} (${g.category})`).join('\n')}`
@@ -102,26 +105,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     Otherwise, respond conversationally.
   `;
 
+  // Map history: Gemini uses 'model', OpenAI uses 'assistant'
+  const openaiHistory: OpenAI.ChatCompletionMessageParam[] = (history || []).map(h => ({
+    role: h.role === 'model' ? 'assistant' as const : 'user' as const,
+    content: h.text,
+  }));
+
   try {
-    const chat = ai.chats.create({
-      model: 'gemini-2.5-flash',
-      config: {
-        systemInstruction: systemInstruction,
-        tools: [{ functionDeclarations: [managePlanTool] }],
-      },
-      history: (history || []).map(h => ({
-        role: h.role,
-        parts: [{ text: h.text }]
-      }))
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemInstruction },
+        ...openaiHistory,
+        { role: 'user', content: message },
+      ],
+      tools: [managePlanTool],
     });
 
-    const response = await chat.sendMessage({ message });
+    const choice = response.choices[0]?.message;
 
-    const serializedResponse = {
-      text: response.text,
-      functionCalls: response.functionCalls,
-      candidates: response.candidates
-    };
+    // Convert OpenAI response to match the existing frontend format
+    const serializedResponse: {
+      text?: string;
+      functionCalls?: Array<{ name: string; args: Record<string, unknown> }>;
+    } = {};
+
+    if (choice?.tool_calls && choice.tool_calls.length > 0) {
+      serializedResponse.functionCalls = choice.tool_calls
+        .filter((tc): tc is OpenAI.ChatCompletionMessageToolCall & { type: 'function' } => tc.type === 'function')
+        .map(tc => ({
+          name: tc.function.name,
+          args: JSON.parse(tc.function.arguments),
+        }));
+    }
+
+    if (choice?.content) {
+      serializedResponse.text = choice.content;
+    }
 
     return res.status(200).json({ response: serializedResponse });
   } catch (error) {

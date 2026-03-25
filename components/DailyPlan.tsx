@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { DailyTask, Goal } from '../types';
 import GlassCard from './GlassCard';
 import { Check, RefreshCw, Trash2, ListTodo, Crosshair, Sparkles, Edit2 } from 'lucide-react';
-import { generateDailyTasks } from '../services/geminiService';
+import { generateDailyTasks } from '../services/aiService';
 
 interface DailyPlanProps {
   goals: Goal[];
@@ -114,7 +114,7 @@ const DailyPlan: React.FC<DailyPlanProps> = ({
   const handleGenerate = async () => {
     setIsGenerating(true);
     const newTasks = await generateDailyTasks(goals);
-    setTasks(newTasks);
+    setTasks((prev: DailyTask[]) => [...prev.filter((t: DailyTask) => !t.associatedGoalId), ...newTasks]);
     setIsGenerating(false);
   };
 

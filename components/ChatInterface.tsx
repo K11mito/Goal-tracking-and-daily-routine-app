@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ChatMessage, Goal, DailyTask } from '../types';
 import GlassCard from './GlassCard';
 import { MessageSquare, ArrowRight, Bot } from 'lucide-react';
-import { chatWithGoals, summarizeChat } from '../services/geminiService';
+import { chatWithGoals, summarizeChat } from '../services/aiService';
 
 interface ChatInterfaceProps {
   goals: Goal[];
@@ -93,7 +93,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ goals, tasks, onModifyTas
     setIsTyping(true);
 
     try {
-      const response = await chatWithGoals(userMsg.text, messages, goals, tasks);
+      const response = await chatWithGoals(userMsg.text, [...messages, userMsg], goals, tasks);
 
       let botText = "I encountered an error.";
 
@@ -134,11 +134,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ goals, tasks, onModifyTas
             className={`flex animate-enter ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[85%] rounded px-3 py-2 text-xs font-mono leading-relaxed ${
-                msg.role === 'user'
+              className={`max-w-[85%] rounded px-3 py-2 text-xs font-mono leading-relaxed ${msg.role === 'user'
                   ? 'bg-lime-500/20 text-lime-800 dark:text-lime-100 border border-lime-500/30'
                   : 'bg-white/40 dark:bg-white/5 text-sage-800 dark:text-slate-300 border border-sage-200 dark:border-white/5'
-              }`}
+                }`}
             >
               {msg.role === 'model' && <Bot size={12} className="inline-block mr-2 mb-0.5 opacity-50" />}
               {msg.text}
@@ -147,11 +146,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ goals, tasks, onModifyTas
         ))}
         {isTyping && (
           <div className="flex justify-start">
-             <div className="flex gap-1 px-3 py-2">
-               <div className="w-1 h-1 bg-lime-500/50 rounded-full animate-pulse"></div>
-               <div className="w-1 h-1 bg-lime-500/50 rounded-full animate-pulse delay-75"></div>
-               <div className="w-1 h-1 bg-lime-500/50 rounded-full animate-pulse delay-150"></div>
-             </div>
+            <div className="flex gap-1 px-3 py-2">
+              <div className="w-1 h-1 bg-lime-500/50 rounded-full animate-pulse"></div>
+              <div className="w-1 h-1 bg-lime-500/50 rounded-full animate-pulse delay-75"></div>
+              <div className="w-1 h-1 bg-lime-500/50 rounded-full animate-pulse delay-150"></div>
+            </div>
           </div>
         )}
         <div ref={messagesEndRef} />
